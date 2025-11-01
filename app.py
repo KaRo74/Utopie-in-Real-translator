@@ -1,40 +1,177 @@
-import io, zipfile, datetime, base64, textwrap
-from pathlib import Path
-
+# app.py
+import os
+import io
+import zipfile
 import streamlit as st
-
-# ---- PDF / Fonts ----
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.colors import HexColor
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.lib.utils import ImageReader
+from datetime import datetime
+from deep_translator import GoogleTranslator
 
-# RTL support
-try:
-    import arabic_reshaper, bidi.algorithm
-    HAS_AR = True
-except Exception:
-    HAS_AR = False
+# --------------------------
+# 🔤 FONT-REGISTRIERUNG
+# --------------------------
+FONT_DIR = "fonts"
+pdfmetrics.registerFont(TTFont("DejaVu", os.path.join(FONT_DIR, "DejaVuSerif.ttf")))
+pdfmetrics.registerFont(TTFont("Amiri", os.path.join(FONT_DIR, "Amiri-Regular.ttf")))
+pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))
+pdfmetrics.registerFont(TTFont("NotoCJK", os.path.join(FONT_DIR, "NotoSansCJKsc-Regular.otf")))
 
-# -------------- UiR CONSTANTS --------------
-UIR_BG = HexColor("#FFFDF5")
-UIR_LILA = HexColor("#8A2BE2")
-UIR_HOPE = HexColor("#00A86B")
+def select_font(lang):
+    lang = lang.lower()
+    if "arab" in lang:
+        return "Amiri"
+    elif "chinese" in lang or "zh" in lang:
+        return "NotoCJK"
+    else:
+        return "DejaVu"
 
-PAGE_W, PAGE_H = A4  # 595 x 842 pt
+# --------------------------
+# 🎨 LAYOUT-FARBEN
+# --------------------------
+LILA = HexColor("#8A2BE2")
+HOPE_GRUEN = HexColor("#00A86B")
+CREME = HexColor("#FFFDF5")
 
-FONTS_DIR = Path("fonts")
-# Fonts: put files into ./fonts/
-FONT_LATIN = str(FONTS_DIR / "DejaVuSans.ttf")
-FONT_AR = str(FONTS_DIR / "Amiri-Regular.ttf")
-FONT_CJK = str(FONTS_DIR / "NotoSansCJKsc-Regular.otf")  # Simplified Chinese
-# Fallback chain per language
-LANG_CFG = {
-    "ar": {"rtl": True, "font": FONT_AR, "name": "العربية"},
-    "zh": {"rtl": False, "font": FONT_CJK, "name": "中文（简体）"},
-    "de": {"rtl": False, "font": FONT_LATIN, "name": "Deutsch"},
-    "en": {"rtl": False, "font": FONT_LATIN, "name": "English"},
-    "fr": {"rtl": False, "font": FONT_LATIN, "name": "Français"},
+# --------------------------
+# 🖼️ PDF-GENERATOR
+# --------------------------
+def create_pdf(filename, title, text, language, contact, logo_path=None):
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    # Hintergrund
+    c.setFillColor(CREME)
+    c.rect(0, 0, width, height, stroke=0, fill=1)
+
+    # Linien oben/unten
+    c.setStrokeColor(HOPE_GRUEN)
+    c.setLineWidth(0.5)
+    c.line(0, height - 35, width, height - 35)
+    c.line(0, 60, width, 60)
+
+    # Logo
+    if logo_path and os.path.exists(logo_path):
+        logo = ImageReader(logo_path)
+    else:
+        logo = ImageReader("assets/UiR_Logo_standard.png")
+    c.drawImage(logo, width - 120, height - 120, width=90, preserveAspectRatio=True, mask="auto")
+
+    # Kontaktblock links
+    c.setFont("DejaVu", 12)
+    c.setFillColor(LILA)
+    y_contact = height - 60
+    for line in contact.split("\n"):
+        c.drawString(40, y_contact, line.strip())
+        y_contact -= 14
+
+    # Überschrift
+    c.setFont(select_font(language), 16)
+    c.setFillColor(LILA)
+    c.drawCentredString(width / 2, height - 150, title)
+
+    # Haupttext
+    c.setFont(select_font(language), 11)
+    text_y = height - 180
+    for line in text.split("\n"):
+        if text_y < 80:
+            c.showPage()
+            text_y = height - 80
+        c.drawString(70, text_y, line)
+        text_y -= 14
+
+    # Fußzeile
+    c.setFont("DejaVu", 9)
+    footer_lines = [
+        "Hoffnung ist stärker als Angst",
+        "Solidarität ist unser Schutz und unsere Verteidigung",
+        "Ihr müsst sagen, was ihr wollt.",
+        "Freiheit ist die Freiheit der Mitmenschen (frei nach Rosa Luxemburg)"
+    ]
+    y_footer = 45
+    for fline in footer_lines:
+        c.drawCentredString(width / 2, y_footer, fline)
+        y_footer -= 10
+
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+# --------------------------
+# 🌐 STREAMLIT UI
+# --------------------------
+st.set_page_config(page_title="Utopie in Real – PDF Translator", page_icon="🌿", layout="centered")
+st.title("🌿 Utopie in Real – Multilingual PDF Generator")
+st.markdown("Erstelle PDFs im UiR-Layout und übersetze deinen Text automatisch in mehrere Sprachen.")
+
+st.divider()
+
+col1, col2 = st.columns(2)
+with col1:
+    date_prefix = datetime.now().strftime("%Y%m%d")
+    filename = st.text_input("📄 Dateiname", f"{date_prefix}_UiR_Dokument")
+    title = st.text_input("🟣 Überschrift", "Way of Hope")
+with col2:
+    base_lang = st.selectbox("🌍 Eingabesprache", ["de", "en", "fr", "es", "ar", "zh", "fa", "sw"], index=0)
+
+text = st.text_area("✍️ Eingabetext (beliebige Sprache)", height=200)
+target_langs = st.multiselect(
+    "🌐 Zielsprache(n) für PDF-Ausgabe wählen",
+    ["de", "en", "fr", "es", "ar", "zh", "fa", "sw"],
+    default=["ar", "en"]
+)
+
+contact = st.text_area("📬 Kontaktblock", 
+"""Instagram @dr_karo_1312
+Ko-fi ko-fi.com/utopieinreal
+CryptPad is.gd/utopie_in_real
+Tidal is.gd/MusicforUtopieInReal""")
+
+logo_file = st.file_uploader("🖼️ Optional: eigenes Logo", type=["png", "jpg"])
+as_zip = len(target_langs) > 1
+
+st.divider()
+
+if st.button("📘 PDF(s) erstellen"):
+    if logo_file:
+        logo_path = os.path.join("assets", "temp_logo.png")
+        with open(logo_path, "wb") as f:
+            f.write(logo_file.read())
+    else:
+        logo_path = "assets/UiR_Logo_standard.png"
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zf:
+        for lang in target_langs:
+            try:
+                translated = GoogleTranslator(source=base_lang, target=lang).translate(text)
+            except Exception as e:
+                translated = text + f"\n\n[⚠️ Übersetzung in {lang} fehlgeschlagen: {e}]"
+
+            pdf_buf = create_pdf(f"{filename}_{lang}.pdf", title, translated, lang, contact, logo_path)
+            zf.writestr(f"{filename}_{lang}.pdf", pdf_buf.read())
+
+    zip_buffer.seek(0)
+    if as_zip:
+        st.download_button(
+            "📦 Alle PDFs herunterladen (ZIP)",
+            zip_buffer,
+            file_name=f"{filename}_UiR_{len(target_langs)}Sprachen.zip",
+            mime="application/zip"
+        )
+    else:
+        st.download_button(
+            "📥 PDF herunterladen",
+            zip_buffer,
+            file_name=f"{filename}_{target_langs[0]}.pdf",
+            mime="application/pdf"
+        )    "fr": {"rtl": False, "font": FONT_LATIN, "name": "Français"},
     "es": {"rtl": False, "font": FONT_LATIN, "name": "Español"},
     "sw": {"rtl": False, "font": FONT_LATIN, "name": "Kiswahili"},
     "qu": {"rtl": False, "font": FONT_LATIN, "name": "Quechua"},
