@@ -1,5 +1,6 @@
 streamlit==1.39.0
 reportlab==4.2.2
+deep-translator
 arabic-reshaper==3.0.0
 python-bidi==0.4.2
 transformers==4.45.2
