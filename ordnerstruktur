@@ -1,0 +1,8 @@
+Utopie-in-Real-translator/
+│  app.py
+│  requirements.txt
+│  README.md
+└─ fonts/
+   ├─ DejaVuSans.ttf
+   ├─ Amiri-Regular.ttf
+   └─ NotoSansCJKsc-Regular.otf
