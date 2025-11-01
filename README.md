@@ -1,21 +1,24 @@
-# UiR – Multilingual PDF Generator
+# 🌿 Utopie-in-Real Translator
 
-Web-App, die Texte ins UiR-Standardlayout rendert (Creme/Lila/Hope-Grün), optional übersetzt und als PDF (oder ZIP) ausgibt. Arabisch = RTL, Logo links, Kontaktblock rechts.
+Ein frei zugängliches Tool, das Texte automatisch übersetzt und im **UiR-Standardlayout** als PDF rendert —  
+für Aktivist*innen, Künstler*innen, Forscher*innen und Communities,  
+die Hoffnung, Wissen und Solidarität teilen möchten – jenseits von Sprachgrenzen.
 
-## Start (lokal)
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-streamlit run app.py
+---
 
-## Schriften
-Lege in `./fonts/` ab:
-- DejaVuSans.ttf
-- Amiri-Regular.ttf
-- NotoSansCJKsc-Regular.otf
+## 💜 Features
 
-## Deploy
-- Hugging Face Spaces (Streamlit)
-- Replit / Codespaces
+- **Mehrsprachige Ausgabe:** beliebige Eingabesprache, frei wählbare Zielsprachen  
+- **Automatische Übersetzung:** via [deep-translator](https://pypi.org/project/deep-translator)  
+- **PDF-Erstellung im UiR-Design:** Creme-Hintergrund, Lila Text, Hope-Grün Linien  
+- **Inklusive Fonts:**  
+  - DejaVu Sans → Lateinische Sprachen  
+  - Amiri → Arabisch  
+  - Noto Sans CJK SC → Chinesisch / Ostasiatisch  
+- **Optionale Personalisierung:** eigenes Logo und Kontaktzeile  
+- **ZIP-Export:** mehrere Sprachen in einer Datei  
+- **Rechts-nach-links-Schrift:** vollständige Unterstützung für Arabisch  
 
-## Hinweis Übersetzung
-Optional via Hugging Face `transformers`. Ohne Token läuft ggf. langsamer/limitiert. Für marginalisierte Sprachen ggf. Text direkt in Zielsprache einfügen.
+---
+
+## 🧩 Projektstruktur
